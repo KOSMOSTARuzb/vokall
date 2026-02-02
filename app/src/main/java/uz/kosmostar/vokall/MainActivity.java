@@ -112,21 +112,6 @@ public class MainActivity extends ConnectionsActivity {
     private boolean mIsMuted = false;
     private boolean mIsSpeakerPhoneOn = true; // Default to speaker
 
-    /** Listens to holding/releasing the volume rocker. */
-    private final GestureDetector mGestureDetector =
-            new GestureDetector(KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_VOLUME_UP) {
-                @Override
-                protected void onHold() {
-                    logV("onHold");
-                    startRecording();
-                }
-
-                @Override
-                protected void onRelease() {
-                    logV("onRelease");
-                    stopRecording();
-                }
-            };
 
     /** For recording audio as the user speaks. */
     @Nullable private AudioRecorder mRecorder;
@@ -165,13 +150,6 @@ public class MainActivity extends ConnectionsActivity {
         audioBtn.setOnClickListener(v -> onToggleSpeakerClicked(audioBtn));
     }
 
-    @Override
-    public boolean dispatchKeyEvent(KeyEvent event) {
-        if (mState == State.CONNECTED && mGestureDetector.onKeyEvent(event)) {
-            return true;
-        }
-        return super.dispatchKeyEvent(event);
-    }
 
     @Override
     protected void onStart() {
@@ -252,6 +230,7 @@ public class MainActivity extends ConnectionsActivity {
         Toast.makeText(
                         this, getString(R.string.toast_disconnected, endpoint.getName()), Toast.LENGTH_SHORT)
                 .show();
+        stopRecording();
         setState(State.SEARCHING);
     }
 
@@ -306,9 +285,11 @@ public class MainActivity extends ConnectionsActivity {
             case CONNECTED:
                 stopDiscovering();
                 stopAdvertising();
+                startRecording();
                 break;
             case UNKNOWN:
                 stopAllEndpoints();
+                stopRecording();
                 break;
             default:
                 // no-op
