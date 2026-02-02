@@ -1,0 +1,67 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+             android:layout_width="match_parent"
+             android:layout_height="match_parent"
+             android:keepScreenOn="true">
+
+    <TextView
+        android:id="@+id/previous_state"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:textSize="24sp"
+        android:padding="10dp"
+        android:textColor="@color/textColor" />
+
+    <TextView
+        android:text="@string/status_unknown"
+        android:id="@+id/current_state"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:textSize="24sp"
+        android:padding="10dp"
+        android:textColor="@color/textColor"
+        android:background="@color/state_unknown"/>
+
+    <TextView
+        android:id="@+id/name"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="top|end"
+        android:textSize="24sp"
+        android:padding="10dp"
+        android:textColor="@color/textColor" />
+    <!-- Add this inside the FrameLayout, above the debug_log TextView -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="120dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_mute"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:text="Mute" />
+
+        <Button
+            android:id="@+id/btn_audio_device"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Speaker: ON" />
+    </LinearLayout>
+    <TextView
+        android:id="@+id/debug_log"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:layout_gravity="bottom"
+        android:gravity="bottom"
+        android:maxLines="10"
+        android:scrollbars="vertical"
+        android:textSize="20sp"
+        android:textColor="@color/textColor" />
+
+</FrameLayout>
