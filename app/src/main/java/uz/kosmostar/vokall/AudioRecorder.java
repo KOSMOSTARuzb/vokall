@@ -1,6 +1,6 @@
 package uz.kosmostar.vokall;
 
-import static android.os.Process.THREAD_PRIORITY_AUDIO;
+import static android.os.Process.THREAD_PRIORITY_URGENT_AUDIO;
 import static android.os.Process.setThreadPriority;
 import static uz.kosmostar.vokall.Constants.TAG;
 
@@ -60,7 +60,7 @@ public class AudioRecorder {
         new Thread() {
           @Override
           public void run() {
-            setThreadPriority(THREAD_PRIORITY_AUDIO);
+            setThreadPriority(THREAD_PRIORITY_URGENT_AUDIO);
 
             Buffer buffer = new Buffer();
             @SuppressLint("MissingPermission") AudioRecord record =
