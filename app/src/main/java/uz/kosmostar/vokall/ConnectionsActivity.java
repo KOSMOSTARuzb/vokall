@@ -241,6 +241,7 @@ public abstract class ConnectionsActivity extends AppCompatActivity {
 
     AdvertisingOptions.Builder advertisingOptions = new AdvertisingOptions.Builder();
     advertisingOptions.setStrategy(getStrategy());
+    advertisingOptions.setLowPower(false);
 
     mConnectionsClient
         .startAdvertising(
@@ -328,6 +329,7 @@ public abstract class ConnectionsActivity extends AppCompatActivity {
     mDiscoveredEndpoints.clear();
     DiscoveryOptions.Builder discoveryOptions = new DiscoveryOptions.Builder();
     discoveryOptions.setStrategy(getStrategy());
+    discoveryOptions.setLowPower(false);
     mConnectionsClient
         .startDiscovery(
             getServiceId(),
