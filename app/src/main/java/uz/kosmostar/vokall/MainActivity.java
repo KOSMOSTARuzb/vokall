@@ -106,6 +106,7 @@ public class MainActivity extends ConnectionsActivity {
     @Nullable private Animator mCurrentAnimator;
 
     /** A running log of debug messages. Only visible when DEBUG=true. */
+    private com.google.android.material.card.MaterialCardView mDebugCardView;
     private TextView mDebugLogView;
 
 
@@ -144,7 +145,7 @@ public class MainActivity extends ConnectionsActivity {
         mStatusIcon = findViewById(R.id.status_icon);
 
         mDebugLogView = (TextView) findViewById(R.id.debug_log);
-        com.google.android.material.card.MaterialCardView mDebugCardView = findViewById(R.id.debug_card);
+        mDebugCardView = findViewById(R.id.debug_card);
         mDebugCardView.setVisibility(DEBUG ? View.VISIBLE : View.GONE);
         mDebugLogView.setMovementMethod(new ScrollingMovementMethod());
 
@@ -163,7 +164,7 @@ public class MainActivity extends ConnectionsActivity {
         mStatusCard.setOnClickListener(v -> onStatusClick(mDebugCardView));
     }
 
-    protected void onStatusClick(View view) {
+    public void onStatusClick(View view) {
         long currentTime = System.currentTimeMillis();
 
         if (currentTime - mLastStatusClickTime < 1000) {
@@ -176,7 +177,7 @@ public class MainActivity extends ConnectionsActivity {
 
         if (mStatusClickCount >= 10) {
             mStatusClickCount = 0;
-            view.setVisibility(view.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
+            mDebugCardView.setVisibility(mDebugCardView.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
         }
     }
 
