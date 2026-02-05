@@ -137,6 +137,7 @@ public class MainActivity extends ConnectionsActivity {
 
     /** The phone's original media volume. */
     private int mOriginalVolume;
+    private int mOriginalMode = AudioManager.MODE_NORMAL;
     private int mStatusClickCount = 0;
     private long mLastStatusClickTime = 0;
 
@@ -192,13 +193,20 @@ public class MainActivity extends ConnectionsActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        if(!hasPermissions(this, getRequiredPermissions()))return;
 
         // Set the media volume to max.
-        setVolumeControlStream(AudioManager.STREAM_MUSIC);
+        setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        mOriginalVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+        if (mState == State.UNKNOWN) {
+            mOriginalVolume = audioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);
+            mOriginalMode = audioManager.getMode();
+        }
         audioManager.setStreamVolume(
-                AudioManager.STREAM_MUSIC, audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC), 0);
+                AudioManager.STREAM_VOICE_CALL, audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL), 0);
+
+        setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
+        audioManager.setSpeakerphoneOn(mIsSpeakerPhoneOn);
 
         setState(State.SEARCHING);
     }
@@ -207,8 +215,9 @@ public class MainActivity extends ConnectionsActivity {
     protected void onStop() {
         // Restore the original volume.
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mOriginalVolume, 0);
+        audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, mOriginalVolume, 0);
         setVolumeControlStream(AudioManager.USE_DEFAULT_STREAM_TYPE);
+        audioManager.setMode(mOriginalMode);
 
         // Stop all audio-related threads
         if (isRecording()) {
@@ -309,6 +318,7 @@ public class MainActivity extends ConnectionsActivity {
      * @param newState The new state we're now in. Prepare the UI for this state.
      */
     private void onStateChanged(State oldState, State newState) {
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         if (mCurrentAnimator != null && mCurrentAnimator.isRunning()) {
             mCurrentAnimator.cancel();
         }
@@ -318,18 +328,21 @@ public class MainActivity extends ConnectionsActivity {
         // Update Nearby Connections to the new state.
         switch (newState) {
             case SEARCHING:
+                audioManager.setMode(AudioManager.MODE_NORMAL);
                 setControlBarVisible(controlBar, false);
                 disconnectFromAllEndpoints();
                 startDiscovering();
                 startAdvertising();
                 break;
             case CONNECTED:
+                audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
                 setControlBarVisible(controlBar, true);
                 stopDiscovering();
                 stopAdvertising();
                 startRecording();
                 break;
             case UNKNOWN:
+                audioManager.setMode(mOriginalMode);
                 setControlBarVisible(controlBar, false);
                 stopAllEndpoints();
                 stopRecording();
@@ -567,12 +580,10 @@ public class MainActivity extends ConnectionsActivity {
         com.google.android.material.button.MaterialButton btn = (com.google.android.material.button.MaterialButton) view;
 
         if (mIsSpeakerPhoneOn) {
-            audioManager.setMode(AudioManager.MODE_NORMAL);
             audioManager.setSpeakerphoneOn(true);
             btn.setText("Speaker");
             btn.setIconResource(R.drawable.volume_up_24px);
         } else {
-            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
             audioManager.setSpeakerphoneOn(false);
             btn.setText("Earpiece");
             btn.setIconResource(R.drawable.phone_in_talk_24px);
