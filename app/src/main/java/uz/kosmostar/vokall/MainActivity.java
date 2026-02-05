@@ -65,13 +65,13 @@ public class MainActivity extends ConnectionsActivity {
     @ColorInt
     private static final int[] COLORS =
             new int[] {
-                    0xFFF44336 /* red */,
-                    0xFF9C27B0 /* deep purple */,
-                    0xFF00BCD4 /* teal */,
-                    0xFF4CAF50 /* green */,
-                    0xFFFFAB00 /* amber */,
-                    0xFFFF9800 /* orange */,
-                    0xFF795548 /* brown */
+                    R.color.color1,
+                    R.color.color2,
+                    R.color.color3,
+                    R.color.color4,
+                    R.color.color5,
+                    R.color.color6,
+                    R.color.color7,
             };
 
     /**
@@ -108,6 +108,10 @@ public class MainActivity extends ConnectionsActivity {
     /** A running log of debug messages. Only visible when DEBUG=true. */
     private TextView mDebugLogView;
 
+
+    private com.google.android.material.card.MaterialCardView mStatusCard;
+    private android.widget.ImageView mStatusIcon;
+
     // Inside MainActivity.java
     private boolean mIsMuted = false;
     private boolean mIsSpeakerPhoneOn = true; // Default to speaker
@@ -121,19 +125,27 @@ public class MainActivity extends ConnectionsActivity {
 
     /** The phone's original media volume. */
     private int mOriginalVolume;
+    private int mStatusClickCount = 0;
+    private long mLastStatusClickTime = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        getSupportActionBar()
-                .setBackgroundDrawable(ContextCompat.getDrawable(this, R.drawable.actionBar));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.state_unknown));
+        }
 
         mPreviousStateView = (TextView) findViewById(R.id.previous_state);
         mCurrentStateView = (TextView) findViewById(R.id.current_state);
 
+        mStatusCard = findViewById(R.id.status_card);
+        mStatusIcon = findViewById(R.id.status_icon);
+
         mDebugLogView = (TextView) findViewById(R.id.debug_log);
-        mDebugLogView.setVisibility(DEBUG ? View.VISIBLE : View.GONE);
+        com.google.android.material.card.MaterialCardView mDebugCardView = findViewById(R.id.debug_card);
+        mDebugCardView.setVisibility(DEBUG ? View.VISIBLE : View.GONE);
         mDebugLogView.setMovementMethod(new ScrollingMovementMethod());
 
         mName = generateRandomName();
@@ -148,8 +160,25 @@ public class MainActivity extends ConnectionsActivity {
 
         Button audioBtn = findViewById(R.id.btn_audio_device);
         audioBtn.setOnClickListener(v -> onToggleSpeakerClicked(audioBtn));
+        mStatusCard.setOnClickListener(v -> onStatusClick(mDebugCardView));
     }
 
+    protected void onStatusClick(View view) {
+        long currentTime = System.currentTimeMillis();
+
+        if (currentTime - mLastStatusClickTime < 1000) {
+            mStatusClickCount++;
+        } else {
+            mStatusClickCount = 1;
+        }
+
+        mLastStatusClickTime = currentTime;
+
+        if (mStatusClickCount >= 10) {
+            mStatusClickCount = 0;
+            view.setVisibility(view.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
+        }
+    }
 
     @Override
     protected void onStart() {
@@ -416,19 +445,38 @@ public class MainActivity extends ConnectionsActivity {
     /** Updates the {@link TextView} with the correct color/text for the given {@link State}. */
     @UiThread
     private void updateTextView(TextView textView, State state) {
+        // Note: 'textView' argument is mostly kept for compatibility with your existing transition logic
+        // but we will primarily update mStatusCard and mStatusIcon
+
+        int color;
+        int iconRes;
+        String statusText;
+
         switch (state) {
             case SEARCHING:
-                textView.setBackgroundResource(R.color.state_searching);
-                textView.setText(R.string.status_searching);
+                color = ContextCompat.getColor(this, R.color.state_searching);
+                iconRes = R.drawable.wifi_find_24px;
+                statusText = getString(R.string.status_searching);
                 break;
             case CONNECTED:
-                textView.setBackgroundColor(mConnectedColor);
-                textView.setText(R.string.status_connected);
+                color = mConnectedColor;
+                iconRes = R.drawable.wifi_calling_bar_3_24px;
+                statusText = getString(R.string.status_connected);
                 break;
             default:
-                textView.setBackgroundResource(R.color.state_unknown);
-                textView.setText(R.string.status_unknown);
+                color = ContextCompat.getColor(this, R.color.state_unknown);
+                iconRes = R.drawable.android_wifi_3_bar_question_24px;
+                statusText = getString(R.string.status_unknown);
                 break;
+        }
+
+        mStatusCard.setCardBackgroundColor(color);
+        mStatusIcon.setImageResource(iconRes);
+        mCurrentStateView.setText(statusText);
+
+        // Set status bar color to match card for immersive feel
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(color);
         }
     }
 
@@ -489,17 +537,18 @@ public class MainActivity extends ConnectionsActivity {
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         mIsSpeakerPhoneOn = !mIsSpeakerPhoneOn;
 
+        com.google.android.material.button.MaterialButton btn = (com.google.android.material.button.MaterialButton) view;
+
         if (mIsSpeakerPhoneOn) {
-            // Switch to Speaker
             audioManager.setMode(AudioManager.MODE_NORMAL);
             audioManager.setSpeakerphoneOn(true);
-            Toast.makeText(this, "Speaker Mode", Toast.LENGTH_SHORT).show();
+            btn.setText("Speaker");
+            btn.setIconResource(android.R.drawable.ic_lock_silent_mode_off);
         } else {
-            // Switch to Earpiece
-            // MODE_IN_COMMUNICATION is required for many devices to route to earpiece
             audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
             audioManager.setSpeakerphoneOn(false);
-            Toast.makeText(this, "Earpiece Mode", Toast.LENGTH_SHORT).show();
+            btn.setText("Earpiece");
+            btn.setIconResource(android.R.drawable.ic_btn_speak_now);
         }
     }
 

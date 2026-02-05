@@ -7,6 +7,14 @@
     <color name="colorPrimaryDark">#000000</color>
     <color name="colorAccent">#66BB6A</color>
 
+    <color name="color1">#FFF44336</color>
+    <color name="color2">#FF9C27B0</color>
+    <color name="color3">#FF00BCD4</color>
+    <color name="color4">#FF4CAF50</color>
+    <color name="color5">#FFFFAB00</color>
+    <color name="color6">#FFFF9800</color>
+    <color name="color7">#FF795548</color>
+
     <color name="textColor">#FFFFFF</color>
 
     <color name="state_unknown">#78909C</color>

@@ -39,7 +39,6 @@ dependencies {
     implementation(libs.activity)
     implementation(libs.constraintlayout)
     implementation(libs.play.services.nearby)
-    implementation(libs.material.icons.extended)
     implementation(libs.accompanist.permissions)
     implementation(libs.kotlinx.coroutines.play.services)
     testImplementation(libs.junit)
