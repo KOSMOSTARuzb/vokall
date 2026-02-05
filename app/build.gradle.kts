@@ -8,6 +8,10 @@ android {
         version = release(36)
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "uz.kosmostar.vokall"
         minSdk = 26

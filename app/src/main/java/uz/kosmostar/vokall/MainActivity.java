@@ -16,18 +16,29 @@ import androidx.annotation.WorkerThread;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import android.text.SpannableString;
+import android.text.TextUtils;
 import android.text.format.DateFormat;
 import android.text.method.ScrollingMovementMethod;
 import android.text.style.ForegroundColorSpan;
+import android.transition.AutoTransition;
+import android.transition.ChangeBounds;
+import android.transition.Fade;
+import android.transition.Transition;
+import android.transition.TransitionManager;
+import android.transition.TransitionSet;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewAnimationUtils;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.google.android.gms.nearby.connection.ConnectionInfo;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.Strategy;
+import com.google.android.material.card.MaterialCardView;
+import uz.kosmostar.vokall.BuildConfig;
+
 import java.io.IOException;
 import java.util.Random;
 
@@ -45,7 +56,7 @@ import java.util.Random;
  */
 public class MainActivity extends ConnectionsActivity {
     /** If true, debug logs are shown on the device. */
-    private static final boolean DEBUG = true;
+    private boolean DEBUG = BuildConfig.DEBUG;
 
     /**
      * The connection strategy we'll use for Nearby Connections. In this case, we've decided on
@@ -153,11 +164,7 @@ public class MainActivity extends ConnectionsActivity {
 
         ((TextView) findViewById(R.id.name)).setText(mName);
         Button muteBtn = findViewById(R.id.btn_mute);
-        muteBtn.setOnClickListener(v -> {
-            mIsMuted = !mIsMuted;
-            muteBtn.setText(mIsMuted ? "Unmute" : "Mute");
-            if (mRecorder != null) mRecorder.setMuted(mIsMuted);
-        });
+        muteBtn.setOnClickListener(v -> onMuteClicked(muteBtn));
 
         Button audioBtn = findViewById(R.id.btn_audio_device);
         audioBtn.setOnClickListener(v -> onToggleSpeakerClicked(audioBtn));
@@ -177,7 +184,8 @@ public class MainActivity extends ConnectionsActivity {
 
         if (mStatusClickCount >= 10) {
             mStatusClickCount = 0;
-            mDebugCardView.setVisibility(mDebugCardView.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
+            DEBUG = !DEBUG;
+            setControlBarVisible(mDebugCardView, DEBUG);
         }
     }
 
@@ -305,19 +313,24 @@ public class MainActivity extends ConnectionsActivity {
             mCurrentAnimator.cancel();
         }
 
+        MaterialCardView controlBar = findViewById(R.id.control_bar);
+
         // Update Nearby Connections to the new state.
         switch (newState) {
             case SEARCHING:
+                setControlBarVisible(controlBar, false);
                 disconnectFromAllEndpoints();
                 startDiscovering();
                 startAdvertising();
                 break;
             case CONNECTED:
+                setControlBarVisible(controlBar, true);
                 stopDiscovering();
                 stopAdvertising();
                 startRecording();
                 break;
             case UNKNOWN:
+                setControlBarVisible(controlBar, false);
                 stopAllEndpoints();
                 stopRecording();
                 break;
@@ -396,6 +409,19 @@ public class MainActivity extends ConnectionsActivity {
                     });
             mCurrentAnimator.start();
         }
+    }
+
+    private void setControlBarVisible(View view, boolean visible) {
+        ViewGroup parent = (ViewGroup) view.getParent();
+
+        TransitionSet set = new TransitionSet()
+                .addTransition(new Fade())
+                .addTransition(new ChangeBounds())
+                .setOrdering(TransitionSet.ORDERING_TOGETHER)
+                .setDuration(400);
+
+        TransitionManager.beginDelayedTransition(parent, set);
+        view.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
     @NonNull
@@ -526,11 +552,11 @@ public class MainActivity extends ConnectionsActivity {
 
     /** Toggles the Mute state */
     public void onMuteClicked(View view) {
+        com.google.android.material.button.MaterialButton btn = (com.google.android.material.button.MaterialButton) view;
         mIsMuted = !mIsMuted;
-        if (mRecorder != null) {
-            mRecorder.setMuted(mIsMuted);
-        }
-        Toast.makeText(this, mIsMuted ? "Muted" : "Unmuted", Toast.LENGTH_SHORT).show();
+        btn.setText(mIsMuted ? "Unmute" : "Mute");
+        btn.setIconResource(mIsMuted ? R.drawable.mic_off_24px : R.drawable.mic_24px);
+        if (mRecorder != null) mRecorder.setMuted(mIsMuted);
     }
 
     /** Toggles between Speaker and Earpiece */
@@ -544,12 +570,12 @@ public class MainActivity extends ConnectionsActivity {
             audioManager.setMode(AudioManager.MODE_NORMAL);
             audioManager.setSpeakerphoneOn(true);
             btn.setText("Speaker");
-            btn.setIconResource(android.R.drawable.ic_lock_silent_mode_off);
+            btn.setIconResource(R.drawable.volume_up_24px);
         } else {
             audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
             audioManager.setSpeakerphoneOn(false);
             btn.setText("Earpiece");
-            btn.setIconResource(android.R.drawable.ic_btn_speak_now);
+            btn.setIconResource(R.drawable.phone_in_talk_24px);
         }
     }
 
@@ -653,9 +679,25 @@ public class MainActivity extends ConnectionsActivity {
     }
 
     private void appendToLogs(CharSequence msg) {
-        mDebugLogView.append("\n");
-        mDebugLogView.append(DateFormat.format("hh:mm", System.currentTimeMillis()) + ": ");
-        mDebugLogView.append(msg);
+        if (!DEBUG) return;
+
+        // 1. Performance check: Only trim when the log gets genuinely long.
+        // 500 characters is too small (it will trigger every 2-3 lines).
+        // Let's use 2000 characters as a threshold.
+        if (mDebugLogView.length() > 2000) {
+            // Trim the top: keep the last 1000 chars to avoid constant trimming
+            CharSequence currentText = mDebugLogView.getText();
+            mDebugLogView.setText(currentText.subSequence(currentText.length() - 1000, currentText.length()));
+        }
+
+        // 2. Prepare the new line
+        CharSequence time = DateFormat.format("mm:ss", System.currentTimeMillis());
+        // We use TextUtils.concat to keep the colors of 'msg'
+        CharSequence newLine = TextUtils.concat("\n", time, ": ", msg);
+
+        // 3. IMPORTANT: Use append(), not setText().
+        // This is much lighter on the CPU.
+        mDebugLogView.append(newLine);
     }
 
     private static CharSequence toColor(String msg, int color) {

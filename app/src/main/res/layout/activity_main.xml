@@ -133,7 +133,7 @@
                 android:layout_margin="4dp"
                 android:layout_weight="1"
                 android:text="Mute"
-                app:icon="@drawable/mic_off_24px" />
+                app:icon="@drawable/mic_24px" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_audio_device"
@@ -143,7 +143,7 @@
                 android:layout_margin="4dp"
                 android:layout_weight="1"
                 android:text="Speaker"
-                app:icon="@drawable/phone_in_talk_24px" />
+                app:icon="@drawable/volume_up_24px" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
