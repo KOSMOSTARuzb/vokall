@@ -141,6 +141,18 @@ public class MainActivity extends ConnectionsActivity {
     private int mStatusClickCount = 0;
     private long mLastStatusClickTime = 0;
 
+    private final androidx.activity.OnBackPressedCallback mBackCallback = new androidx.activity.OnBackPressedCallback(true) {
+        @Override
+        public void handleOnBackPressed() {
+            if (getState() == State.CONNECTED) {
+                setState(State.SEARCHING);
+            } else {
+                setEnabled(false);
+                getOnBackPressedDispatcher().onBackPressed();
+            }
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -171,20 +183,7 @@ public class MainActivity extends ConnectionsActivity {
         audioBtn.setOnClickListener(v -> onToggleSpeakerClicked(audioBtn));
         mStatusCard.setOnClickListener(v -> onStatusClick(mDebugCardView));
 
-        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                if (getState() == State.CONNECTED) {
-                    // If connected, move back to searching state
-                    setState(State.SEARCHING);
-                } else {
-                    // If not connected, disable this callback and trigger the default back behavior
-                    // (which will close the activity)
-                    setEnabled(false);
-                    getOnBackPressedDispatcher().onBackPressed();
-                }
-            }
-        });
+        getOnBackPressedDispatcher().addCallback(this, mBackCallback);
     }
 
     public void onStatusClick(View view) {
@@ -328,6 +327,7 @@ public class MainActivity extends ConnectionsActivity {
         if (mCurrentAnimator != null && mCurrentAnimator.isRunning()) {
             mCurrentAnimator.cancel();
         }
+        mBackCallback.setEnabled(true);
 
         MaterialCardView controlBar = findViewById(R.id.control_bar);
 
