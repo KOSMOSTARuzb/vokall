@@ -529,29 +529,24 @@ public class MainActivity extends ConnectionsActivity {
     /** {@see ConnectionsActivity#onReceive(Endpoint, Payload)} */
     @Override
     protected void onReceive(Endpoint endpoint, Payload payload) {
-        if (payload.getType() == Payload.Type.STREAM) {
-            if (mAudioPlayer != null) {
-                mAudioPlayer.stop();
-                mAudioPlayer = null;
+        if (getState() != State.CONNECTED) {
+            final Endpoint finalEndpoint = endpoint;
+            runOnUiThread(() -> {
+                if (getState() != State.CONNECTED) {
+                    onEndpointConnected(finalEndpoint);
+                }
+            });
+        }
+        // We now handle BYTES instead of STREAM
+        if (payload.getType() == Payload.Type.BYTES) {
+            if (mAudioPlayer != null && mAudioPlayer.isPlaying()) {
+                mAudioPlayer.addAudioData(payload.asBytes());
+            } else if (mAudioPlayer == null) {
+                // Initialize player if not running (or handle auto-start logic)
+                mAudioPlayer = new AudioPlayer();
+                mAudioPlayer.start();
+                mAudioPlayer.addAudioData(payload.asBytes());
             }
-
-            AudioPlayer player =
-                    new AudioPlayer(payload.asStream().asInputStream()) {
-                        @WorkerThread
-                        @Override
-                        protected void onFinish() {
-                            runOnUiThread(
-                                    new Runnable() {
-                                        @UiThread
-                                        @Override
-                                        public void run() {
-                                            mAudioPlayer = null;
-                                        }
-                                    });
-                        }
-                    };
-            mAudioPlayer = player;
-            player.start();
         }
     }
 
@@ -599,19 +594,21 @@ public class MainActivity extends ConnectionsActivity {
     /** Starts recording sound from the microphone and streaming it to all connected devices. */
     private void startRecording() {
         logV("startRecording()");
-        try {
-            ParcelFileDescriptor[] payloadPipe = ParcelFileDescriptor.createPipe();
 
-            // Send the first half of the payload (the read side) to Nearby Connections.
-            send(Payload.fromStream(payloadPipe[0]));
+        // No more ParcelFileDescriptor pipe.
+        // We pass a callback that gets called whenever mic data is ready.
+        mRecorder = new AudioRecorder(new AudioRecorder.AudioDataCallback() {
+            @Override
+            public void onAudioData(byte[] data) {
+                // Send the byte array immediately as a payload
+                if (getState() == State.CONNECTED) {
+                    send(Payload.fromBytes(data));
+                }
+            }
+        });
 
-            // Use the second half of the payload (the write side) in AudioRecorder.
-            mRecorder = new AudioRecorder(payloadPipe[1]);
-            mRecorder.setMuted(mIsMuted);
-            mRecorder.start();
-        } catch (IOException e) {
-            logE("startRecording() failed", e);
-        }
+        mRecorder.setMuted(mIsMuted);
+        mRecorder.start();
     }
 
     /** Stops streaming sound from the microphone. */

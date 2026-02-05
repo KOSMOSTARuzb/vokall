@@ -8,6 +8,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.util.Log;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,28 +20,30 @@ import java.io.InputStream;
  */
 public class AudioPlayer {
     /**
-     * The audio stream we're reading from.
+     * Buffer limit. If we have more than 15 packets waiting,
+     * we are lagging behind. Drop them to catch up.
      */
-    private final InputStream mInputStream;
+    private static final int MAX_BUFFER_SIZE = 15;
 
-    /**
-     * If true, the background thread will continue to loop and play audio. Once false, the thread
-     * will shut down.
-     */
+    private final LinkedBlockingQueue<byte[]> mQueue = new LinkedBlockingQueue<>();
     private volatile boolean mAlive;
-
-    /**
-     * The background thread recording audio for us.
-     */
     private Thread mThread;
 
-    /**
-     * A simple audio player.
-     *
-     * @param inputStream The input stream of the recording.
-     */
-    public AudioPlayer(InputStream inputStream) {
-        mInputStream = inputStream;
+    public AudioPlayer() {
+    }
+
+    /** Call this when BYTES payload is received */
+    public void addAudioData(byte[] data) {
+        if (!mAlive) return;
+
+        // Anti-Lag Logic:
+        // If the queue is too full, clear it. This causes a tiny skip in audio
+        // but ensures we are playing "live" audio, not audio from 1 minute ago.
+        if (mQueue.size() > MAX_BUFFER_SIZE) {
+            mQueue.clear();
+            Log.w(TAG, "Player buffer full - Dropping audio to catch up");
+        }
+        mQueue.add(data);
     }
 
     /**
@@ -72,41 +75,32 @@ public class AudioPlayer {
                                         AudioTrack.MODE_STREAM);
                         audioTrack.play();
 
-                        int len;
-                        try {
-                            while (isPlaying() && (len = mInputStream.read(buffer.data)) > 0) {
-                                audioTrack.write(buffer.data, 0, len);
-                            }
-                        } catch (IOException e) {
-                            Log.e(TAG, "Exception with playing stream", e);
-                        } finally {
-                            stopInternal();
-                            audioTrack.release();
-                            onFinish();
-                        }
+                try {
+                    while (isPlaying()) {
+                        // Take data from the queue, blocking until data arrives
+                        byte[] data = mQueue.take();
+                        audioTrack.write(data, 0, data.length);
                     }
-                };
+                } catch (InterruptedException e) {
+                    Log.e(TAG, "AudioPlayer interrupted", e);
+                } finally {
+                    audioTrack.stop();
+                    audioTrack.release();
+                    onFinish();
+                }
+            }
+        };
         mThread.start();
     }
 
-    private void stopInternal() {
-        mAlive = false;
-        try {
-            mInputStream.close();
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to close input stream", e);
-        }
-    }
-
-    /**
-     * Stops playing the stream.
-     */
     public void stop() {
-        stopInternal();
+        mAlive = false;
+        // Inject a dummy byte to wake up the queue.take() if it's waiting
+        mQueue.offer(new byte[0]);
         try {
-            mThread.join();
+            if (mThread != null) mThread.join();
         } catch (InterruptedException e) {
-            Log.e(TAG, "Interrupted while joining AudioRecorder thread", e);
+            Log.e(TAG, "Interrupted while joining AudioPlayer thread", e);
             Thread.currentThread().interrupt();
         }
     }

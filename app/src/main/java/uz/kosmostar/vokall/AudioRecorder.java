@@ -14,34 +14,23 @@ import android.os.ParcelFileDescriptor;
 import android.util.Log;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
 
-/**
- * When created, you must pass a {@link ParcelFileDescriptor}. Once {@link #start()} is called, the
- * file descriptor will be written to until {@link #stop()} is called.
- */
+
 public class AudioRecorder {
-  /** The stream to write to. */
-  private final OutputStream mOutputStream;
+    /** Interface to send data back to the Activity */
+    public interface AudioDataCallback {
+        void onAudioData(byte[] data);
+    }
 
-  /**
-   * If true, the background thread will continue to loop and record audio. Once false, the thread
-   * will shut down.
-   */
-  private volatile boolean mAlive;
-
-  /** The background thread recording audio for us. */
-  private Thread mThread;
-
+    private final AudioDataCallback mCallback;
+    private volatile boolean mAlive;
+    private Thread mThread;
     private volatile boolean mMuted = false;
 
-  /**
-   * A simple audio recorder.
-   *
-   * @param file The output stream of the recording.
-   */
-  public AudioRecorder(ParcelFileDescriptor file) {
-    mOutputStream = new ParcelFileDescriptor.AutoCloseOutputStream(file);
-  }
+    public AudioRecorder(AudioDataCallback callback) {
+        mCallback = callback;
+    }
 
   /** @return True if actively recording. False otherwise. */
   public boolean isRecording() {
@@ -96,73 +85,60 @@ public class AudioRecorder {
 
               record.startRecording();
 
-            // While we're running, we'll read the bytes from the AudioRecord and write them
-            // to our output stream.
-            try {
-              while (isRecording()) {
-                int len = record.read(buffer.data, 0, buffer.size);
-                if (len >= 0 && len <= buffer.size) {
-                    if (mMuted) {
-                        java.util.Arrays.fill(buffer.data, 0, len, (byte) 0);
+                try {
+                    while (isRecording()) {
+                        int len = record.read(buffer.data, 0, buffer.size);
+                        if (len > 0) {
+                            if (mMuted) {
+                                Arrays.fill(buffer.data, 0, len, (byte) 0);
+                            }
+                            // Copy the valid bytes to a new array to send via callback
+                            byte[] dataToSend = Arrays.copyOf(buffer.data, len);
+                            mCallback.onAudioData(dataToSend);
+                        }
                     }
-                  mOutputStream.write(buffer.data, 0, len);
-                  mOutputStream.flush();
-                } else {
-                  Log.w(TAG, "Unexpected length returned: " + len);
+                } catch (Exception e) {
+                    Log.e(TAG, "Exception with recording stream", e);
+                } finally {
+                    try {
+                        record.stop();
+                    } catch (IllegalStateException e) {
+                        Log.e(TAG, "Failed to stop AudioRecord", e);
+                    }
+                    if (ns != null) ns.release();
+                    if (aec != null) aec.release();
+                    record.release();
                 }
-              }
-            } catch (IOException e) {
-              Log.e(TAG, "Exception with recording stream", e);
-            } finally {
-              stopInternal();
-              try {
-                record.stop();
-              } catch (IllegalStateException e) {
-                Log.e(TAG, "Failed to stop AudioRecord", e);
-              }
-                if (ns != null) ns.release();
-                if (aec != null) aec.release();
-              record.release();
             }
-          }
         };
-    mThread.start();
-  }
+        mThread.start();
+    }
 
     public void setMuted(boolean muted) {
         this.mMuted = muted;
     }
 
-  private void stopInternal() {
-    mAlive = false;
-    try {
-      mOutputStream.close();
-    } catch (IOException e) {
-      Log.e(TAG, "Failed to close output stream", e);
-    }
-  }
-
-  /** Stops recording audio. */
-  public void stop() {
-    stopInternal();
-    try {
-      mThread.join();
-    } catch (InterruptedException e) {
-      Log.e(TAG, "Interrupted while joining AudioRecorder thread", e);
-      Thread.currentThread().interrupt();
-    }
-  }
-
-  private static class Buffer extends AudioBuffer {
-    @Override
-    protected boolean validSize(int size) {
-      return size != AudioRecord.ERROR && size != AudioRecord.ERROR_BAD_VALUE;
+    /** Stops recording audio. */
+    public void stop() {
+        mAlive = false;
+        try {
+            if (mThread != null) mThread.join();
+        } catch (InterruptedException e) {
+            Log.e(TAG, "Interrupted while joining AudioRecorder thread", e);
+            Thread.currentThread().interrupt();
+        }
     }
 
-    @Override
-    protected int getMinBufferSize(int sampleRate) {
-      return AudioRecord.getMinBufferSize(
-          sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+    private static class Buffer extends AudioBuffer {
+        @Override
+        protected boolean validSize(int size) {
+            return size != AudioRecord.ERROR && size != AudioRecord.ERROR_BAD_VALUE;
+        }
+
+        @Override
+        protected int getMinBufferSize(int sampleRate) {
+            return AudioRecord.getMinBufferSize(
+                    sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+        }
     }
-  }
 }
