@@ -170,6 +170,21 @@ public class MainActivity extends ConnectionsActivity {
         Button audioBtn = findViewById(R.id.btn_audio_device);
         audioBtn.setOnClickListener(v -> onToggleSpeakerClicked(audioBtn));
         mStatusCard.setOnClickListener(v -> onStatusClick(mDebugCardView));
+
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (getState() == State.CONNECTED) {
+                    // If connected, move back to searching state
+                    setState(State.SEARCHING);
+                } else {
+                    // If not connected, disable this callback and trigger the default back behavior
+                    // (which will close the activity)
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
     }
 
     public void onStatusClick(View view) {
@@ -235,15 +250,6 @@ public class MainActivity extends ConnectionsActivity {
         }
 
         super.onStop();
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (getState() == State.CONNECTED) {
-            setState(State.SEARCHING);
-            return;
-        }
-        super.onBackPressed();
     }
 
     @Override
