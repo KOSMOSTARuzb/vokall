@@ -15,3 +15,4 @@
 local.properties
 /.idea/
 /app/src/main/java/uz/kosmostar/vokall/temp
+/app/release/
