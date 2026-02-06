@@ -173,7 +173,7 @@ public class MainActivity extends ConnectionsActivity {
         setContentView(R.layout.activity_main);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.state_unknown));
+            getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.md_theme_tertiaryContainer));
         }
 
         initViews();
@@ -587,7 +587,7 @@ public class MainActivity extends ConnectionsActivity {
 
         switch (state) {
             case SEARCHING:
-                color = ContextCompat.getColor(this, R.color.state_searching);
+                color = ContextCompat.getColor(this, R.color.md_theme_primaryContainer);
                 iconRes = R.drawable.wifi_find_24px;
                 statusText = getString(R.string.status_searching);
                 break;
@@ -597,7 +597,7 @@ public class MainActivity extends ConnectionsActivity {
                 statusText = getString(R.string.status_connected);
                 break;
             default:
-                color = ContextCompat.getColor(this, R.color.state_unknown);
+                color = ContextCompat.getColor(this, R.color.md_theme_tertiaryContainer);
                 iconRes = R.drawable.android_wifi_3_bar_question_24px;
                 statusText = getString(R.string.status_unknown);
                 break;

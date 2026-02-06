@@ -1,23 +1,11 @@
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-    <color name="state_searching">#B0BEC5</color>
-    <color name="colorPrimary">#000000</color>
-    <color name="colorPrimaryDark">#000000</color>
-    <color name="colorAccent">#66BB6A</color>
-
-    <color name="color1">#FFF44336</color>
-    <color name="color2">#FF9C27B0</color>
-    <color name="color3">#FF00BCD4</color>
-    <color name="color4">#FF4CAF50</color>
-    <color name="color5">#FFFFAB00</color>
-    <color name="color6">#FFFF9800</color>
-    <color name="color7">#FF795548</color>
-
-    <color name="textColor">#FFFFFF</color>
-
-    <color name="state_unknown">#78909C</color>
-    <color name="state_connected">#0097A7</color>
+    <color name="color1">#EF9A9A</color> <!-- Soft Red -->
+    <color name="color2">#CE93D8</color> <!-- Soft Purple -->
+    <color name="color3">#80DEEA</color> <!-- Soft Cyan -->
+    <color name="color4">#A5D6A7</color> <!-- Soft Green -->
+    <color name="color5">#FFE082</color> <!-- Soft Amber -->
+    <color name="color6">#FFCC80</color> <!-- Soft Orange -->
+    <color name="color7">#BCAAA4</color> <!-- Soft Brown -->
 
     <color name="log_verbose">#FFFFFF</color>
     <color name="log_debug">#EEEEEE</color>

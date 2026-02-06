@@ -1,4 +1,12 @@
 <resources>
+    <color name="color1">#C62828</color> <!-- Deep Red -->
+    <color name="color2">#6A1B9A</color> <!-- Deep Purple -->
+    <color name="color3">#00838F</color> <!-- Deep Cyan -->
+    <color name="color4">#2E7D32</color> <!-- Deep Green -->
+    <color name="color5">#FF8F00</color> <!-- Deep Amber -->
+    <color name="color6">#EF6C00</color> <!-- Deep Orange -->
+    <color name="color7">#4E342E</color> <!-- Deep Brown -->
+
     <color name="md_theme_primary">#BEC2FF</color>
     <color name="md_theme_onPrimary">#262B60</color>
     <color name="md_theme_primaryContainer">#3D4279</color>
