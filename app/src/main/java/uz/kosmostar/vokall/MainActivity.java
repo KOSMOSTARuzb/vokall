@@ -32,7 +32,6 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewAnimationUtils;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -134,6 +133,10 @@ public class MainActivity extends ConnectionsActivity {
     private RecyclerView mDevicesRecyclerView;
     private DeviceAdapter mDeviceAdapter;
     private androidx.appcompat.app.AlertDialog mIncomingCallDialog;
+    private MaterialButton muteBtnOn;
+    private MaterialButton muteBtnOff;
+    private MaterialButton speakerButtonOn;
+    private MaterialButton speakerButtonOff;
 
     // Inside MainActivity.java
     private boolean mIsMuted = false;
@@ -202,11 +205,15 @@ public class MainActivity extends ConnectionsActivity {
     }
 
     private void setupAudioButtons() {
-        MaterialButton muteBtn = findViewById(R.id.btn_mute);
-        muteBtn.setOnClickListener(v -> onMuteClicked(muteBtn));
+        muteBtnOn = findViewById(R.id.btn_mute_on);
+        muteBtnOff = findViewById(R.id.btn_mute_off);
+        muteBtnOn.setOnClickListener(v -> onMuteClicked());
+        muteBtnOff.setOnClickListener(v -> onMuteClicked());
 
-        MaterialButton audioBtn = findViewById(R.id.btn_audio_device);
-        audioBtn.setOnClickListener(v -> onToggleSpeakerClicked(audioBtn));
+        speakerButtonOn = findViewById(R.id.btn_speaker);
+        speakerButtonOff = findViewById(R.id.btn_earpiece);
+        speakerButtonOn.setOnClickListener(v -> onToggleSpeakerClicked());
+        speakerButtonOff.setOnClickListener(v -> onToggleSpeakerClicked());
 
         MaterialButton endCallBtn = findViewById(R.id.btn_disconnect);
         endCallBtn.setOnClickListener(v -> {
@@ -642,30 +649,22 @@ public class MainActivity extends ConnectionsActivity {
     }
 
     /** Toggles the Mute state */
-    public void onMuteClicked(View view) {
-        com.google.android.material.button.MaterialButton btn = (com.google.android.material.button.MaterialButton) view;
+    public void onMuteClicked() {
         mIsMuted = !mIsMuted;
-        btn.setText(mIsMuted ? "Unmute" : "Mute");
-        btn.setIconResource(mIsMuted ? R.drawable.mic_off_24px : R.drawable.mic_24px);
+        muteBtnOn.setVisibility(mIsMuted ? View.VISIBLE : View.GONE);
+        muteBtnOff.setVisibility(!mIsMuted ? View.VISIBLE : View.GONE);
         if (mRecorder != null) mRecorder.setMuted(mIsMuted);
     }
 
     /** Toggles between Speaker and Earpiece */
-    public void onToggleSpeakerClicked(View view) {
+    public void onToggleSpeakerClicked() {
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         mIsSpeakerPhoneOn = !mIsSpeakerPhoneOn;
 
-        com.google.android.material.button.MaterialButton btn = (com.google.android.material.button.MaterialButton) view;
+        audioManager.setSpeakerphoneOn(mIsSpeakerPhoneOn);
 
-        if (mIsSpeakerPhoneOn) {
-            audioManager.setSpeakerphoneOn(true);
-            btn.setText("Speaker");
-            btn.setIconResource(R.drawable.volume_up_24px);
-        } else {
-            audioManager.setSpeakerphoneOn(false);
-            btn.setText("Earpiece");
-            btn.setIconResource(R.drawable.phone_in_talk_24px);
-        }
+        speakerButtonOn.setVisibility(mIsSpeakerPhoneOn ? View.VISIBLE : View.GONE);
+        speakerButtonOff.setVisibility(!mIsSpeakerPhoneOn ? View.VISIBLE : View.GONE);
     }
 
     /** Starts recording sound from the microphone and streaming it to all connected devices. */
