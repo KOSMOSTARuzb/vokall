@@ -227,6 +227,7 @@ public class MainActivity extends ConnectionsActivity {
             // User clicked a device to call
             updateTextView(mCurrentStateView, State.CONNECTED); // Temporarily until established
             mCurrentStateView.setText("Sending request to " + endpoint.getName() + "...");
+            mStatusIcon.setImageResource(R.drawable.settings_phone_24px);
             connectToEndpoint(endpoint);
         });
         mDevicesRecyclerView.setAdapter(mDeviceAdapter);
@@ -320,8 +321,8 @@ public class MainActivity extends ConnectionsActivity {
     private void showIncomingCallDialog(Endpoint endpoint) {
         mIncomingCallDialog = new MaterialAlertDialogBuilder(this)
                 .setTitle("Incoming Call")
-                .setMessage(endpoint.getName() + " wants to talk.")
-                .setIcon(R.drawable.phone_in_talk_24px)
+                .setMessage("From: "+endpoint.getName())
+                .setIcon(R.drawable.phone_callback_24px)
                 .setCancelable(false)
                 .setPositiveButton("Answer", (dialog, which) -> {
                     acceptConnection(endpoint);
@@ -360,6 +361,7 @@ public class MainActivity extends ConnectionsActivity {
         stopRecording();
         stopPlaying();
         setState(State.SEARCHING);
+        updateTextView(mCurrentStateView, State.SEARCHING);
     }
 
     @Override
@@ -369,6 +371,7 @@ public class MainActivity extends ConnectionsActivity {
         }
         Toast.makeText(this, "Connection failed", Toast.LENGTH_SHORT).show();
         setState(State.SEARCHING);
+        updateTextView(mCurrentStateView, State.SEARCHING);
     }
 
     /**
