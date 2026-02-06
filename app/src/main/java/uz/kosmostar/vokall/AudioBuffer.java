@@ -6,7 +6,8 @@ package uz.kosmostar.vokall;
  */
 public abstract class AudioBuffer {
   private static final int[] POSSIBLE_SAMPLE_RATES =
-      new int[] {8000};
+//      new int[] {8000};
+        new int[] {16000, 11025, 8000};
 //      new int[] {8000, 11025, 16000, 22050, 44100, 48000};
 
   final int size;
