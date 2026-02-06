@@ -15,6 +15,8 @@ import androidx.annotation.UiThread;
 import androidx.annotation.WorkerThread;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
+import androidx.recyclerview.widget.RecyclerView;
+
 import android.text.SpannableString;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
@@ -31,12 +33,16 @@ import android.view.View;
 import android.view.ViewAnimationUtils;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.google.android.gms.nearby.connection.ConnectionInfo;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.Strategy;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
 import uz.kosmostar.vokall.BuildConfig;
 
 import java.io.IOException;
@@ -90,7 +96,7 @@ public class MainActivity extends ConnectionsActivity {
      * sample does exactly one thing, so we hardcode the ID.
      */
     private static final String SERVICE_ID =
-            "uz.kosmostar.vokall.automatic.SERVICE_ID";
+            "uz.kosmostar.vokall.manual.SERVICE_ID";
 
     /**
      * The state of the app. As the app changes states, the UI will update and advertising/discovery
@@ -123,6 +129,11 @@ public class MainActivity extends ConnectionsActivity {
 
     private com.google.android.material.card.MaterialCardView mStatusCard;
     private android.widget.ImageView mStatusIcon;
+    private View mControlBar;
+    // List Elements
+    private RecyclerView mDevicesRecyclerView;
+    private DeviceAdapter mDeviceAdapter;
+    private androidx.appcompat.app.AlertDialog mIncomingCallDialog;
 
     // Inside MainActivity.java
     private boolean mIsMuted = false;
@@ -162,28 +173,56 @@ public class MainActivity extends ConnectionsActivity {
             getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.state_unknown));
         }
 
-        mPreviousStateView = (TextView) findViewById(R.id.previous_state);
-        mCurrentStateView = (TextView) findViewById(R.id.current_state);
+        initViews();
+        setupAudioButtons();
+        setupDeviceList();
 
-        mStatusCard = findViewById(R.id.status_card);
-        mStatusIcon = findViewById(R.id.status_icon);
-
-        mDebugLogView = (TextView) findViewById(R.id.debug_log);
-        mDebugCardView = findViewById(R.id.debug_card);
-        mDebugCardView.setVisibility(DEBUG ? View.VISIBLE : View.GONE);
-        mDebugLogView.setMovementMethod(new ScrollingMovementMethod());
 
         mName = generateRandomName();
-
         ((TextView) findViewById(R.id.name)).setText(mName);
-        Button muteBtn = findViewById(R.id.btn_mute);
-        muteBtn.setOnClickListener(v -> onMuteClicked(muteBtn));
-
-        Button audioBtn = findViewById(R.id.btn_audio_device);
-        audioBtn.setOnClickListener(v -> onToggleSpeakerClicked(audioBtn));
-        mStatusCard.setOnClickListener(v -> onStatusClick(mDebugCardView));
 
         getOnBackPressedDispatcher().addCallback(this, mBackCallback);
+    }
+
+
+    private void initViews() {
+        mPreviousStateView = findViewById(R.id.previous_state);
+        mCurrentStateView = findViewById(R.id.current_state);
+        mStatusCard = findViewById(R.id.status_card);
+        mStatusIcon = findViewById(R.id.status_icon);
+        mControlBar = findViewById(R.id.control_bar);
+        mDebugLogView = findViewById(R.id.debug_log);
+        mDebugCardView = findViewById(R.id.debug_card);
+        mDevicesRecyclerView = findViewById(R.id.devices_list);
+
+//        mStatusCard.setOnClickListener(v -> onStatusClick(mDebugCardView));
+
+        mDebugLogView.setMovementMethod(new ScrollingMovementMethod());
+        mDebugCardView.setVisibility(DEBUG ? View.VISIBLE : View.GONE);
+    }
+
+    private void setupAudioButtons() {
+        MaterialButton muteBtn = findViewById(R.id.btn_mute);
+        muteBtn.setOnClickListener(v -> onMuteClicked(muteBtn));
+
+        MaterialButton audioBtn = findViewById(R.id.btn_audio_device);
+        audioBtn.setOnClickListener(v -> onToggleSpeakerClicked(audioBtn));
+
+        MaterialButton endCallBtn = findViewById(R.id.btn_disconnect);
+        endCallBtn.setOnClickListener(v -> {
+            disconnectFromAllEndpoints();
+            setState(State.SEARCHING);
+        });
+    }
+
+    private void setupDeviceList() {
+        mDeviceAdapter = new DeviceAdapter(endpoint -> {
+            // User clicked a device to call
+            updateTextView(mCurrentStateView, State.CONNECTED); // Temporarily until established
+            mCurrentStateView.setText("Sending request to " + endpoint.getName() + "...");
+            connectToEndpoint(endpoint);
+        });
+        mDevicesRecyclerView.setAdapter(mDeviceAdapter);
     }
 
     public void onStatusClick(View view) {
@@ -253,45 +292,76 @@ public class MainActivity extends ConnectionsActivity {
 
     @Override
     protected void onEndpointDiscovered(Endpoint endpoint) {
-        // We found an advertiser!
-        stopDiscovering();
-        connectToEndpoint(endpoint);
+        runOnUiThread(() -> mDeviceAdapter.addDevice(endpoint));
     }
 
     @Override
     protected void onConnectionInitiated(Endpoint endpoint, ConnectionInfo connectionInfo) {
-        // A connection to another device has been initiated! We'll use the auth token, which is the
-        // same on both devices, to pick a color to use when we're connected. This way, users can
-        // visually see which device they connected with.
-        mConnectedColor = COLORS[connectionInfo.getAuthenticationToken().hashCode() % COLORS.length];
-
-        // We accept the connection immediately.
-        acceptConnection(endpoint);
+        // NEW: Check if incoming or outgoing
+        if (connectionInfo.isIncomingConnection()) {
+            // Show Dialog to Answer/Reject
+            runOnUiThread(() -> showIncomingCallDialog(endpoint));
+        } else {
+            // We initiated the call. We must accept the handshake to finalize connection.
+            acceptConnection(endpoint);
+            // Optionally update UI to show "Calling..."
+            updateTextView(mCurrentStateView, State.CONNECTED); // Temporarily until established
+            mCurrentStateView.setText("Calling " + endpoint.getName() + "...");
+        }
     }
+
+    private void showIncomingCallDialog(Endpoint endpoint) {
+        mIncomingCallDialog = new MaterialAlertDialogBuilder(this)
+                .setTitle("Incoming Call")
+                .setMessage(endpoint.getName() + " wants to talk.")
+                .setIcon(R.drawable.phone_in_talk_24px)
+                .setCancelable(false)
+                .setPositiveButton("Answer", (dialog, which) -> {
+                    acceptConnection(endpoint);
+                })
+                .setNegativeButton("Decline", (dialog, which) -> {
+                    rejectConnection(endpoint);
+                })
+                .show();
+    }
+
 
     @Override
     protected void onEndpointConnected(Endpoint endpoint) {
-        Toast.makeText(
-                        this, getString(R.string.toast_connected, endpoint.getName()), Toast.LENGTH_SHORT)
-                .show();
+        if (mIncomingCallDialog != null && mIncomingCallDialog.isShowing()) {
+            mIncomingCallDialog.dismiss();
+        }
+
+        // Pick color based on auth token
+        mConnectedColor = COLORS[endpoint.getId().hashCode() % COLORS.length];
+
+        Toast.makeText(this, "Connected to " + endpoint.getName(), Toast.LENGTH_SHORT).show();
         setState(State.CONNECTED);
     }
 
     @Override
+    protected void onEndpointLost(String endpointId) {
+        runOnUiThread(() -> mDeviceAdapter.removeDevice(endpointId));
+    }
+
+    @Override
     protected void onEndpointDisconnected(Endpoint endpoint) {
-        Toast.makeText(
-                        this, getString(R.string.toast_disconnected, endpoint.getName()), Toast.LENGTH_SHORT)
-                .show();
+        if (mIncomingCallDialog != null && mIncomingCallDialog.isShowing()) {
+            mIncomingCallDialog.dismiss();
+        }
+        Toast.makeText(this, getString(R.string.toast_disconnected, endpoint.getName()), Toast.LENGTH_SHORT).show();
         stopRecording();
+        stopPlaying();
         setState(State.SEARCHING);
     }
 
     @Override
     protected void onConnectionFailed(Endpoint endpoint) {
-        // Let's try someone else.
-        if (getState() == State.SEARCHING) {
-            startDiscovering();
+        if (mIncomingCallDialog != null && mIncomingCallDialog.isShowing()) {
+            mIncomingCallDialog.dismiss();
         }
+        Toast.makeText(this, "Connection failed", Toast.LENGTH_SHORT).show();
+        setState(State.SEARCHING);
     }
 
     /**
@@ -327,14 +397,20 @@ public class MainActivity extends ConnectionsActivity {
         if (mCurrentAnimator != null && mCurrentAnimator.isRunning()) {
             mCurrentAnimator.cancel();
         }
-        mBackCallback.setEnabled(true);
+        mBackCallback.setEnabled(newState == State.CONNECTED);
 
-        MaterialCardView controlBar = findViewById(R.id.control_bar);
+        LinearLayout controlBar = findViewById(R.id.control_bar);
 
         // Update Nearby Connections to the new state.
         switch (newState) {
             case SEARCHING:
                 audioManager.setMode(AudioManager.MODE_NORMAL);
+
+                // Show List, Hide Controls
+                mDevicesRecyclerView.setVisibility(View.VISIBLE);
+
+                mDeviceAdapter.clear(); // Clear old list, discovery restarts
+
                 setControlBarVisible(controlBar, false);
                 disconnectFromAllEndpoints();
                 startDiscovering();
@@ -343,6 +419,7 @@ public class MainActivity extends ConnectionsActivity {
             case CONNECTED:
                 audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
                 setControlBarVisible(controlBar, true);
+                mDevicesRecyclerView.setVisibility(View.GONE); // TODO: ANIMATE THIS
                 stopDiscovering();
                 stopAdvertising();
                 startRecording();

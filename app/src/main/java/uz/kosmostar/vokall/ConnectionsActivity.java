@@ -176,7 +176,13 @@ public abstract class ConnectionsActivity extends AppCompatActivity {
         @Override
         public void onPayloadReceived(String endpointId, Payload payload) {
           logD(String.format("onPayloadReceived(endpointId=%s, payload=%s)", endpointId, payload));
-          onReceive(mEstablishedConnections.get(endpointId), payload);
+
+            Endpoint endpoint = mEstablishedConnections.get(endpointId);
+            if (endpoint == null) {
+                logW("Received payload from unknown or disconnected endpoint: " + endpointId);
+                return;
+            }
+            onReceive(endpoint, payload);
         }
 
         @Override
@@ -351,6 +357,7 @@ public abstract class ConnectionsActivity extends AppCompatActivity {
               @Override
               public void onEndpointLost(String endpointId) {
                 logD(String.format("onEndpointLost(endpointId=%s)", endpointId));
+                ConnectionsActivity.this.onEndpointLost(endpointId);
               }
             },
             discoveryOptions.build())
@@ -394,6 +401,11 @@ public abstract class ConnectionsActivity extends AppCompatActivity {
    * #connectToEndpoint(Endpoint)}.
    */
   protected void onEndpointDiscovered(Endpoint endpoint) {}
+
+    /**
+     * Called when a remote endpoint is lost (no longer discovered).
+     */
+    protected void onEndpointLost(String endpointId) {}
 
   /** Disconnects from the given endpoint. */
   protected void disconnect(Endpoint endpoint) {
